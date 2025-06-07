@@ -1,142 +1,187 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Line Sum Puzzle</title>
   <style>
     body {
-      font-family: sans-serif;
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
       margin: 0;
-      padding: 0;
-      background-color: #f5f5f5;
+      padding: 2rem;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      height: 100vh;
-    }
-    h1 {
-      margin-bottom: 10px;
     }
     #grid {
       display: grid;
       grid-template-columns: repeat(5, 60px);
-      grid-template-rows: repeat(5, 60px);
-      gap: 4px;
+      gap: 10px;
+      margin-bottom: 1rem;
     }
     .cell {
       background: white;
-      border: 2px solid #ccc;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      font-weight: bold;
+      border: 1px solid #ccc;
+      padding: 20px;
+      text-align: center;
+      font-size: 1.2rem;
       cursor: pointer;
+      user-select: none;
     }
     .selected {
       background: lightblue;
-      border-color: blue;
-    }
-    #targetSums {
-      margin-top: 20px;
-    }
-    .completed {
-      text-decoration: line-through;
-      color: gray;
     }
     #message {
-      margin-top: 20px;
-      font-size: 18px;
-      color: green;
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+    #scoreboard {
+      margin-top: 1rem;
+    }
+    button {
+      padding: 10px 20px;
+      margin-top: 1rem;
+    }
+    #quote {
+      margin-top: 1rem;
+      font-style: italic;
+      color: #333;
     }
   </style>
 </head>
 <body>
-  <h1>Line Sum Puzzle</h1>
-  <div id="grid"></div>
-  <div id="targetSums"></div>
-  <div id="message"></div>
 
-  <script>
-    const gridValues = [
-      2, 5, 6, 2, 5,
-      3, 4, 7, 8, 3,
-      1, 1, 6, 6, 3,
-      2, 4, 7, 6, 5,
-      3, 6, 2, 2, 6
-    ];
+<h2>Line Sum Puzzle Game</h2>
+<div id="grid"></div>
+<div id="message"></div>
+<div id="quote"></div>
+<div id="scoreboard">
+  <p>🎯 Target Sum: <span id="targetDisplay"></span></p>
+  <p>🏆 Score: <span id="score">0</span></p>
+  <p>🔢 Level: <span id="level">1</span></p>
+  <p id="lockMessage" style="color: red;"></p>
+</div>
+<button id="resetBtn" style="display:none;">Play Again</button>
 
-    const targetSums = [25, 34, 68, 33];
-    let selectedCells = [];
-    const usedCells = new Set();
-    const usedSums = new Set();
+<script>
+  const gridSize = 5;
+  const maxFails = 5;
+  const lockTime = 5 * 60 * 1000; // 5 minutes
 
-    const grid = document.getElementById('grid');
-    const targetSumsEl = document.getElementById('targetSums');
-    const messageEl = document.getElementById('message');
+  let gridValues = [];
+  let selectedCells = [];
+  let currentSum = 0;
+  let targetSum = 25;
+  let failCount = 0;
+  let lockUntil = null;
+  let score = 0;
+  let level = 1;
 
-    function renderGrid() {
-      grid.innerHTML = '';
-      gridValues.forEach((value, i) => {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        cell.innerText = value;
-        cell.dataset.index = i;
-        if (usedCells.has(i)) cell.style.background = '#ccc';
-        cell.addEventListener('click', () => handleCellClick(i));
-        grid.appendChild(cell);
-      });
+  const quotes = [
+    "Keep going, you're doing great!",
+    "Success is the sum of small efforts, repeated day-in and day-out.",
+    "Believe in yourself and all that you are.",
+    "Every level up is a step toward mastery.",
+    "You are capable of amazing things!"
+  ];
+
+  const grid = document.getElementById('grid');
+  const message = document.getElementById('message');
+  const targetDisplay = document.getElementById('targetDisplay');
+  const scoreDisplay = document.getElementById('score');
+  const levelDisplay = document.getElementById('level');
+  const lockMessage = document.getElementById('lockMessage');
+  const resetBtn = document.getElementById('resetBtn');
+  const quoteEl = document.getElementById('quote');
+
+  function randomGrid() {
+    const values = [];
+    for (let i = 0; i < gridSize * gridSize; i++) {
+      values.push(Math.floor(Math.random() * 9) + 1);
     }
+    return values;
+  }
 
-    function renderTargetSums() {
-      targetSumsEl.innerHTML = '<strong>Target Sums:</strong><br>' + targetSums.map(sum => {
-        return `<span class="${usedSums.has(sum) ? 'completed' : ''}">${sum}</span>`;
-      }).join(', ');
-    }
+  function renderGrid() {
+    grid.innerHTML = '';
+    gridValues.forEach((val, index) => {
+      const div = document.createElement('div');
+      div.classList.add('cell');
+      div.textContent = val;
+      div.dataset.index = index;
+      div.addEventListener('click', () => handleCellClick(index, div));
+      grid.appendChild(div);
+    });
+  }
 
-    function handleCellClick(index) {
-      if (usedCells.has(index)) return;
+  function handleCellClick(index, cellEl) {
+    if (Date.now() < lockUntil) return;
+    if (selectedCells.includes(index)) return;
 
-      const cell = document.querySelector(`[data-index='${index}']`);
-      if (selectedCells.includes(index)) {
-        selectedCells = selectedCells.filter(i => i !== index);
-        cell.classList.remove('selected');
-      } else {
-        selectedCells.push(index);
-        cell.classList.add('selected');
-      }
+    selectedCells.push(index);
+    currentSum += gridValues[index];
+    cellEl.classList.add('selected');
 
-      const currentSum = selectedCells.reduce((sum, i) => sum + gridValues[i], 0);
-
-      if (targetSums.includes(currentSum) && !usedSums.has(currentSum)) {
-        usedSums.add(currentSum);
-        selectedCells.forEach(i => usedCells.add(i));
-        selectedCells = [];
-        renderGrid();
-        renderTargetSums();
-
-        if (usedCells.size === gridValues.length && usedSums.size === targetSums.length) {
-          showMotivationQuote();
-        }
-      }
-    }
-
-    function showMotivationQuote() {
-      const quotes = [
-        "Great job! Every challenge you finish makes you stronger.",
-        "You just proved you can do hard things. Keep going!",
-        "Your brain is smiling right now. 😊",
-        "You're leveling up your mind!",
-        "Focus + Effort = Growth. You're on the right path."
-      ];
+    if (currentSum === targetSum) {
+      score += 10;
+      level += 1;
       const quote = quotes[Math.floor(Math.random() * quotes.length)];
-      messageEl.innerText = '🎉 Puzzle Completed!\n' + quote;
+      quoteEl.textContent = `"${quote}"`;
+      message.textContent = "🎉 Success! Moving to next level.";
+      updateStats();
+      setTimeout(() => resetGame(), 2000);
+    } else if (currentSum > targetSum) {
+      failCount++;
+      if (failCount >= maxFails) {
+        lockUntil = Date.now() + lockTime;
+        showLockTimer();
+      } else {
+        message.textContent = `❌ Too much! Try again. (${failCount}/${maxFails})`;
+        resetBtn.style.display = 'inline-block';
+      }
     }
+  }
 
+  function resetGame() {
+    selectedCells = [];
+    currentSum = 0;
+    gridValues = randomGrid();
+    targetSum = Math.floor(Math.random() * 20 + 20 + level); // harder per level
+    message.textContent = `🎯 Find a path that sums to ${targetSum}`;
+    quoteEl.textContent = '';
+    resetBtn.style.display = 'none';
     renderGrid();
-    renderTargetSums();
-  </script>
+    updateStats();
+  }
+
+  function updateStats() {
+    targetDisplay.textContent = targetSum;
+    scoreDisplay.textContent = score;
+    levelDisplay.textContent = level;
+  }
+
+  function showLockTimer() {
+    const interval = setInterval(() => {
+      const remaining = lockUntil - Date.now();
+      if (remaining <= 0) {
+        clearInterval(interval);
+        failCount = 0;
+        lockMessage.textContent = '';
+        message.textContent = "🔓 Unlocked! You can try again.";
+        resetBtn.style.display = 'inline-block';
+      } else {
+        lockMessage.textContent = `⏳ Locked for ${Math.ceil(remaining / 1000)} seconds.`;
+      }
+    }, 1000);
+  }
+
+  resetBtn.addEventListener('click', resetGame);
+
+  // Initial setup
+  gridValues = randomGrid();
+  targetDisplay.textContent = targetSum;
+  renderGrid();
+</script>
 </body>
 </html>
