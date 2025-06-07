@@ -147,14 +147,12 @@
       selectedCells = selectedCells.filter(i => i !== index);
       currentSum -= gridValues[index];
       cellEl.classList.remove('selected');
-      lastSelectedIndex = selectedCells.length > 0 ? selectedCells[selectedCells.length - 1] : null;
       return;
     }
 
-    if (lastSelectedIndex !== null && !isAdjacent(index, lastSelectedIndex)) return;
+    if (selectedCells.length > 0 && !isAdjacent(index, selectedCells[selectedCells.length - 1])) return;
 
     selectedCells.push(index);
-    lastSelectedIndex = index;
     currentSum += gridValues[index];
     cellEl.classList.add('selected');
 
@@ -162,9 +160,9 @@
       if (completedSums.has(i)) continue;
       if (currentSum === targetSums[i]) {
         completedSums.add(i);
+        selectedCells.forEach(idx => document.querySelector(`[data-index='${idx}']`).classList.remove('selected'));
         currentSum = 0;
         selectedCells = [];
-        lastSelectedIndex = null;
         updateStats();
         message.textContent = `✅ Solved sum #${i + 1}`;
         if (completedSums.size === targetSums.length) {
@@ -186,7 +184,9 @@
         showLockTimer();
       } else {
         message.textContent = `❌ Too much! Try again. (${failCount}/${maxFails})`;
-        resetBtn.style.display = 'inline-block';
+        selectedCells.forEach(idx => document.querySelector(`[data-index='${idx}']`).classList.remove('selected'));
+        selectedCells = [];
+        currentSum = 0;
       }
     }
   }
@@ -194,7 +194,6 @@
   function resetGame() {
     selectedCells = [];
     currentSum = 0;
-    lastSelectedIndex = null;
     completedSums = new Set();
     failCount = 0;
     gridValues = randomGrid();
