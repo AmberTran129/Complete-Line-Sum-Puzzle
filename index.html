@@ -72,13 +72,13 @@
 <script>
   const gridSize = 5;
   const maxFails = 5;
-  const lockTime = 5 * 60 * 1000; // 5 minutes
+  const lockTime = 3 * 60 * 1000; // 3 minutes
 
   let gridValues = [];
   let selectedCells = [];
   let currentSum = 0;
   let targetSums = [];
-  let currentTargetIndex = 0;
+  let completedSums = new Set();
   let failCount = 0;
   let lockUntil = null;
   let score = 0;
@@ -105,19 +105,19 @@
   function randomGrid() {
     const values = [];
     for (let i = 0; i < gridSize * gridSize; i++) {
-      values.push(Math.floor(Math.random() * 9) + 1);
+      values.push(Math.floor(Math.random() * 9) + 1 + level);
     }
     return values;
   }
 
   function generateTargetSums() {
-    let targets = [];
     let total = gridValues.reduce((a, b) => a + b, 0);
-    let remaining = total;
-    while (remaining > 0) {
-      let portion = Math.min(Math.floor(Math.random() * 10 + 10), remaining);
+    let targets = [];
+    let used = 0;
+    while (used < total) {
+      let portion = Math.min(Math.floor(Math.random() * 10 + 10), total - used);
       targets.push(portion);
-      remaining -= portion;
+      used += portion;
     }
     return targets;
   }
@@ -158,29 +158,28 @@
     currentSum += gridValues[index];
     cellEl.classList.add('selected');
 
-    const targetSum = targetSums[currentTargetIndex];
-
-    if (currentSum === targetSum) {
-      const allSums = targetSums.map((sum, i) => i < currentTargetIndex + 1 ? `<span class='completed-sum'>${sum}</span>` : sum);
-      targetDisplay.innerHTML = allSums.join(', ');
-
-      currentTargetIndex++;
-      currentSum = 0;
-      lastSelectedIndex = null;
-      selectedCells = [];
-
-      if (currentTargetIndex >= targetSums.length) {
-        score += 10;
-        level += 1;
-        const quote = quotes[Math.floor(Math.random() * quotes.length)];
-        quoteEl.textContent = `"${quote}"`;
-        message.textContent = "🎉 Nailed it";
+    for (let i = 0; i < targetSums.length; i++) {
+      if (completedSums.has(i)) continue;
+      if (currentSum === targetSums[i]) {
+        completedSums.add(i);
+        currentSum = 0;
+        selectedCells = [];
+        lastSelectedIndex = null;
         updateStats();
-        setTimeout(() => resetGame(), 15000);
-      } else {
-        message.textContent = `✅ Target ${currentTargetIndex}/${targetSums.length} done! Continue.`;
+        message.textContent = `✅ Solved sum #${i + 1}`;
+        if (completedSums.size === targetSums.length) {
+          score += 10;
+          level++;
+          const quote = quotes[Math.floor(Math.random() * quotes.length)];
+          quoteEl.textContent = `"${quote}"`;
+          message.textContent = "🎉 All sums completed!";
+          setTimeout(() => resetGame(), 15000);
+        }
+        return;
       }
-    } else if (currentSum > targetSum) {
+    }
+
+    if (currentSum > Math.max(...targetSums.filter((_, i) => !completedSums.has(i)))) {
       failCount++;
       if (failCount >= maxFails) {
         lockUntil = Date.now() + lockTime;
@@ -196,10 +195,11 @@
     selectedCells = [];
     currentSum = 0;
     lastSelectedIndex = null;
-    currentTargetIndex = 0;
+    completedSums = new Set();
+    failCount = 0;
     gridValues = randomGrid();
     targetSums = generateTargetSums();
-    message.textContent = `🎯 Match all these sums: ${targetSums.join(', ')}`;
+    message.textContent = `🎯 Complete all these sums by selecting adjacent cells.`;
     quoteEl.textContent = '';
     resetBtn.style.display = 'none';
     renderGrid();
@@ -207,7 +207,7 @@
   }
 
   function updateStats() {
-    const allSums = targetSums.map((sum, i) => i < currentTargetIndex ? `<span class='completed-sum'>${sum}</span>` : sum);
+    const allSums = targetSums.map((sum, i) => completedSums.has(i) ? `<span class='completed-sum'>${sum}</span>` : sum);
     targetDisplay.innerHTML = allSums.join(', ');
     scoreDisplay.textContent = score;
     levelDisplay.textContent = level;
@@ -223,7 +223,7 @@
         message.textContent = "🔓 Unlocked! You can try again.";
         resetBtn.style.display = 'inline-block';
       } else {
-        lockMessage.textContent = `⏳ Locked for ${Math.ceil(remaining / 1000)} seconds.`;
+        lockMessage.textContent = `⏳ Locked for ${Math.ceil(remaining / 1000 / 60)} minutes.`;
       }
     }, 1000);
   }
@@ -233,8 +233,8 @@
   // Initial setup
   gridValues = randomGrid();
   targetSums = generateTargetSums();
-  targetDisplay.innerHTML = targetSums.join(', ');
   renderGrid();
+  updateStats();
 </script>
 </body>
 </html>
