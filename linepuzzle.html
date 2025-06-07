@@ -57,7 +57,7 @@
 <div id="message"></div>
 <div id="quote"></div>
 <div id="scoreboard">
-  <p>🎯 Target Sum: <span id="targetDisplay"></span></p>
+  <p>🎯 Target Sums: <span id="targetDisplay"></span></p>
   <p>🏆 Score: <span id="score">0</span></p>
   <p>🔢 Level: <span id="level">1</span></p>
   <p id="lockMessage" style="color: red;"></p>
@@ -72,11 +72,13 @@
   let gridValues = [];
   let selectedCells = [];
   let currentSum = 0;
-  let targetSum = 25;
+  let targetSums = [];
+  let currentTargetIndex = 0;
   let failCount = 0;
   let lockUntil = null;
   let score = 0;
   let level = 1;
+  let lastSelectedIndex = null;
 
   const quotes = [
     "Keep going, you're doing great!",
@@ -103,6 +105,18 @@
     return values;
   }
 
+  function generateTargetSums() {
+    let targets = [];
+    let total = gridValues.reduce((a, b) => a + b, 0);
+    let remaining = total;
+    while (remaining > 0) {
+      let portion = Math.min(Math.floor(Math.random() * 10 + 10), remaining);
+      targets.push(portion);
+      remaining -= portion;
+    }
+    return targets;
+  }
+
   function renderGrid() {
     grid.innerHTML = '';
     gridValues.forEach((val, index) => {
@@ -115,22 +129,39 @@
     });
   }
 
+  function isAdjacent(a, b) {
+    const rowA = Math.floor(a / gridSize), colA = a % gridSize;
+    const rowB = Math.floor(b / gridSize), colB = b % gridSize;
+    return (Math.abs(rowA - rowB) + Math.abs(colA - colB)) === 1;
+  }
+
   function handleCellClick(index, cellEl) {
     if (Date.now() < lockUntil) return;
     if (selectedCells.includes(index)) return;
+    if (lastSelectedIndex !== null && !isAdjacent(index, lastSelectedIndex)) return;
 
     selectedCells.push(index);
+    lastSelectedIndex = index;
     currentSum += gridValues[index];
     cellEl.classList.add('selected');
 
+    const targetSum = targetSums[currentTargetIndex];
+
     if (currentSum === targetSum) {
-      score += 10;
-      level += 1;
-      const quote = quotes[Math.floor(Math.random() * quotes.length)];
-      quoteEl.textContent = `"${quote}"`;
-      message.textContent = "🎉 Success! Moving to next level.";
-      updateStats();
-      setTimeout(() => resetGame(), 2000);
+      currentTargetIndex++;
+      currentSum = 0;
+      lastSelectedIndex = null;
+      if (currentTargetIndex >= targetSums.length) {
+        score += 10;
+        level += 1;
+        const quote = quotes[Math.floor(Math.random() * quotes.length)];
+        quoteEl.textContent = `"${quote}"`;
+        message.textContent = "🎉 Nailed it";
+        updateStats();
+        setTimeout(() => resetGame(), 15000);
+      } else {
+        message.textContent = `✅ Target ${currentTargetIndex}/${targetSums.length} done! Continue.`;
+      }
     } else if (currentSum > targetSum) {
       failCount++;
       if (failCount >= maxFails) {
@@ -146,9 +177,11 @@
   function resetGame() {
     selectedCells = [];
     currentSum = 0;
+    lastSelectedIndex = null;
+    currentTargetIndex = 0;
     gridValues = randomGrid();
-    targetSum = Math.floor(Math.random() * 20 + 20 + level); // harder per level
-    message.textContent = `🎯 Find a path that sums to ${targetSum}`;
+    targetSums = generateTargetSums();
+    message.textContent = `🎯 Match all these sums: ${targetSums.join(', ')}`;
     quoteEl.textContent = '';
     resetBtn.style.display = 'none';
     renderGrid();
@@ -156,7 +189,7 @@
   }
 
   function updateStats() {
-    targetDisplay.textContent = targetSum;
+    targetDisplay.textContent = targetSums.join(', ');
     scoreDisplay.textContent = score;
     levelDisplay.textContent = level;
   }
@@ -180,7 +213,8 @@
 
   // Initial setup
   gridValues = randomGrid();
-  targetDisplay.textContent = targetSum;
+  targetSums = generateTargetSums();
+  targetDisplay.textContent = targetSums.join(', ');
   renderGrid();
 </script>
 </body>
