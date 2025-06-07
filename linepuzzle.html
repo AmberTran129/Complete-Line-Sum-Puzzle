@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Line Sum Puzzle</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(5, 60px);
+      grid-template-rows: repeat(5, 60px);
+      gap: 4px;
+    }
+    .cell {
+      background: white;
+      border: 2px solid #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .selected {
+      background: lightblue;
+      border-color: blue;
+    }
+    #targetSums {
+      margin-top: 20px;
+    }
+    .completed {
+      text-decoration: line-through;
+      color: gray;
+    }
+    #message {
+      margin-top: 20px;
+      font-size: 18px;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <h1>Line Sum Puzzle</h1>
+  <div id="grid"></div>
+  <div id="targetSums"></div>
+  <div id="message"></div>
+
+  <script>
+    const gridValues = [
+      2, 5, 6, 2, 5,
+      3, 4, 7, 8, 3,
+      1, 1, 6, 6, 3,
+      2, 4, 7, 6, 5,
+      3, 6, 2, 2, 6
+    ];
+
+    const targetSums = [25, 34, 68, 33];
+    let selectedCells = [];
+    const usedCells = new Set();
+    const usedSums = new Set();
+
+    const grid = document.getElementById('grid');
+    const targetSumsEl = document.getElementById('targetSums');
+    const messageEl = document.getElementById('message');
+
+    function renderGrid() {
+      grid.innerHTML = '';
+      gridValues.forEach((value, i) => {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.innerText = value;
+        cell.dataset.index = i;
+        if (usedCells.has(i)) cell.style.background = '#ccc';
+        cell.addEventListener('click', () => handleCellClick(i));
+        grid.appendChild(cell);
+      });
+    }
+
+    function renderTargetSums() {
+      targetSumsEl.innerHTML = '<strong>Target Sums:</strong><br>' + targetSums.map(sum => {
+        return `<span class="${usedSums.has(sum) ? 'completed' : ''}">${sum}</span>`;
+      }).join(', ');
+    }
+
+    function handleCellClick(index) {
+      if (usedCells.has(index)) return;
+
+      const cell = document.querySelector(`[data-index='${index}']`);
+      if (selectedCells.includes(index)) {
+        selectedCells = selectedCells.filter(i => i !== index);
+        cell.classList.remove('selected');
+      } else {
+        selectedCells.push(index);
+        cell.classList.add('selected');
+      }
+
+      const currentSum = selectedCells.reduce((sum, i) => sum + gridValues[i], 0);
+
+      if (targetSums.includes(currentSum) && !usedSums.has(currentSum)) {
+        usedSums.add(currentSum);
+        selectedCells.forEach(i => usedCells.add(i));
+        selectedCells = [];
+        renderGrid();
+        renderTargetSums();
+
+        if (usedCells.size === gridValues.length && usedSums.size === targetSums.length) {
+          showMotivationQuote();
+        }
+      }
+    }
+
+    function showMotivationQuote() {
+      const quotes = [
+        "Great job! Every challenge you finish makes you stronger.",
+        "You just proved you can do hard things. Keep going!",
+        "Your brain is smiling right now. 😊",
+        "You're leveling up your mind!",
+        "Focus + Effort = Growth. You're on the right path."
+      ];
+      const quote = quotes[Math.floor(Math.random() * quotes.length)];
+      messageEl.innerText = '🎉 Puzzle Completed!\n' + quote;
+    }
+
+    renderGrid();
+    renderTargetSums();
+  </script>
+</body>
+</html>
