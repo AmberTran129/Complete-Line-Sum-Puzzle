@@ -48,6 +48,11 @@
       font-style: italic;
       color: #333;
     }
+    .completed-sum {
+      text-decoration: underline;
+      font-weight: bold;
+      color: green;
+    }
   </style>
 </head>
 <body>
@@ -137,7 +142,15 @@
 
   function handleCellClick(index, cellEl) {
     if (Date.now() < lockUntil) return;
-    if (selectedCells.includes(index)) return;
+
+    if (selectedCells.includes(index)) {
+      selectedCells = selectedCells.filter(i => i !== index);
+      currentSum -= gridValues[index];
+      cellEl.classList.remove('selected');
+      lastSelectedIndex = selectedCells.length > 0 ? selectedCells[selectedCells.length - 1] : null;
+      return;
+    }
+
     if (lastSelectedIndex !== null && !isAdjacent(index, lastSelectedIndex)) return;
 
     selectedCells.push(index);
@@ -148,9 +161,14 @@
     const targetSum = targetSums[currentTargetIndex];
 
     if (currentSum === targetSum) {
+      const allSums = targetSums.map((sum, i) => i < currentTargetIndex + 1 ? `<span class='completed-sum'>${sum}</span>` : sum);
+      targetDisplay.innerHTML = allSums.join(', ');
+
       currentTargetIndex++;
       currentSum = 0;
       lastSelectedIndex = null;
+      selectedCells = [];
+
       if (currentTargetIndex >= targetSums.length) {
         score += 10;
         level += 1;
@@ -189,7 +207,8 @@
   }
 
   function updateStats() {
-    targetDisplay.textContent = targetSums.join(', ');
+    const allSums = targetSums.map((sum, i) => i < currentTargetIndex ? `<span class='completed-sum'>${sum}</span>` : sum);
+    targetDisplay.innerHTML = allSums.join(', ');
     scoreDisplay.textContent = score;
     levelDisplay.textContent = level;
   }
@@ -214,7 +233,7 @@
   // Initial setup
   gridValues = randomGrid();
   targetSums = generateTargetSums();
-  targetDisplay.textContent = targetSums.join(', ');
+  targetDisplay.innerHTML = targetSums.join(', ');
   renderGrid();
 </script>
 </body>
